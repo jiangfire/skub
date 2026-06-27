@@ -57,7 +57,7 @@ export async function listComments(skillId: string, page = 1, pageSize = 50) {
 // ── Ratings ──
 
 export async function upsertRating(userId: string, skillId: string, stars: number) {
-  await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     await tx.rating.upsert({
       where: { skillId_userId: { skillId, userId } },
       create: { userId, skillId, stars },
@@ -78,7 +78,10 @@ export async function upsertRating(userId: string, skillId: string, stars: numbe
         ratingCount: agg._count.stars,
       },
     });
+
+    return { stars, ratingAvg: agg._avg.stars ?? 0, ratingCount: agg._count.stars };
   });
+  return result;
 }
 
 // ── Favorites (toggle, race-safe via upsert) ──

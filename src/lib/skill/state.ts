@@ -7,19 +7,19 @@ export type { SkillStatus, SkillAction };
 // Single source of truth for all valid state transitions (DRY).
 // Adding a new transition = adding one entry here (Open/Closed Principle).
 interface TransitionDef {
-  from: SkillStatus;
+  from: SkillStatus[];
   to: SkillStatus;
 }
 
 const TRANSITIONS: Readonly<Record<SkillAction, TransitionDef>> = Object.freeze({
-  submit: { from: "Draft", to: "Pending" },
-  approve: { from: "Pending", to: "Approved" },
-  reject: { from: "Pending", to: "Rejected" },
-  requestChanges: { from: "Pending", to: "Draft" },
-  edit: { from: "Rejected", to: "Draft" },
-  selfOffline: { from: "Approved", to: "Offline" },
-  forceOffline: { from: "Approved", to: "Offline" },
-  republish: { from: "Offline", to: "Pending" },
+  submit: { from: ["Draft", "Rejected"], to: "Pending" },
+  approve: { from: ["Pending"], to: "Approved" },
+  reject: { from: ["Pending"], to: "Rejected" },
+  requestChanges: { from: ["Pending"], to: "Draft" },
+  edit: { from: ["Rejected"], to: "Draft" },
+  selfOffline: { from: ["Approved"], to: "Offline" },
+  forceOffline: { from: ["Approved"], to: "Offline" },
+  republish: { from: ["Offline"], to: "Pending" },
 });
 
 // ─── Public API ───
@@ -29,7 +29,7 @@ const TRANSITIONS: Readonly<Record<SkillAction, TransitionDef>> = Object.freeze(
  */
 export function canTransition(from: SkillStatus, action: SkillAction): boolean {
   const def = TRANSITIONS[action];
-  return def !== undefined && def.from === from;
+  return def !== undefined && def.from.includes(from);
 }
 
 /**

@@ -30,6 +30,10 @@ describe("Skill State Machine", () => {
       expect(transition("Rejected", "edit")).toBe("Draft");
     });
 
+    it("Rejected → Pending via submit (direct resubmit)", () => {
+      expect(transition("Rejected", "submit")).toBe("Pending");
+    });
+
     it("Approved → Offline via selfOffline", () => {
       expect(transition("Approved", "selfOffline")).toBe("Offline");
     });
@@ -46,10 +50,9 @@ describe("Skill State Machine", () => {
   // ── Invalid Transitions ──
   describe("invalid transitions throw STATE_INVALID", () => {
     const invalidCases: Array<[SkillStatus, SkillAction]> = [
-      // Can't submit from non-Draft states
+      // Can't submit from non-Draft/Rejected states
       ["Pending", "submit"],
       ["Approved", "submit"],
-      ["Rejected", "submit"],
       ["Offline", "submit"],
       // Can't approve from non-Pending states
       ["Draft", "approve"],
@@ -93,13 +96,13 @@ describe("Skill State Machine", () => {
     });
   });
 
-  // ── Rejected must go through Draft ──
-  describe("Rejected → Pending must go through Draft", () => {
-    it("cannot submit directly from Rejected", () => {
-      expect(() => transition("Rejected", "submit")).toThrowError(/STATE_INVALID/);
+  // ── Rejected supports both edit and direct resubmit ──
+  describe("Rejected transitions", () => {
+    it("can submit directly from Rejected (resubmit after rejection)", () => {
+      expect(transition("Rejected", "submit")).toBe("Pending");
     });
 
-    it("must edit first (Rejected → Draft), then submit (Draft → Pending)", () => {
+    it("can edit to go back to Draft first, then submit", () => {
       const draft = transition("Rejected", "edit");
       expect(draft).toBe("Draft");
       const pending = transition(draft, "submit");
@@ -119,7 +122,7 @@ describe("Skill State Machine", () => {
     it("returns false for invalid transitions", () => {
       expect(canTransition("Draft", "approve")).toBe(false);
       expect(canTransition("Approved", "submit")).toBe(false);
-      expect(canTransition("Rejected", "submit")).toBe(false);
+      expect(canTransition("Rejected", "approve")).toBe(false);
     });
   });
 
@@ -133,8 +136,8 @@ describe("Skill State Machine", () => {
       expect(getValidActions("Pending").sort()).toEqual(["approve", "reject", "requestChanges"]);
     });
 
-    it("returns edit for Rejected", () => {
-      expect(getValidActions("Rejected")).toEqual(["edit"]);
+    it("returns edit and submit for Rejected", () => {
+      expect(getValidActions("Rejected").sort()).toEqual(["edit", "submit"]);
     });
 
     it("returns selfOffline and forceOffline for Approved", () => {
@@ -167,6 +170,17 @@ describe("Skill State Machine", () => {
       expect(status).toBe("Rejected");
       status = transition(status, "edit");
       expect(status).toBe("Draft");
+      status = transition(status, "submit");
+      expect(status).toBe("Pending");
+      status = transition(status, "approve");
+      expect(status).toBe("Approved");
+    });
+
+    it("Draft → Pending → Rejected → Pending (direct resubmit) → Approved", () => {
+      let status: SkillStatus = "Draft";
+      status = transition(status, "submit");
+      status = transition(status, "reject");
+      expect(status).toBe("Rejected");
       status = transition(status, "submit");
       expect(status).toBe("Pending");
       status = transition(status, "approve");

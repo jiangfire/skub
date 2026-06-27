@@ -24,6 +24,6 @@ export const POST = withErrorHandler(async (request: NextRequest, ctx) => {
     return validationError("Validation failed", parsed.error.flatten());
   }
 
-  await upsertRating(user.id, skill.id, parsed.data.stars);
-  return NextResponse.json({ ok: true });
+  const result = await upsertRating(user.id, skill.id, parsed.data.stars);
+  return NextResponse.json(result);
 });
