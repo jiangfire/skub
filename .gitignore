@@ -34,3 +34,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma
+prisma/migrations/dev.db*
+
+# vitest
+/coverage
+
+# husky
+.husky/_
+
+# workbuddy workspace
+.workbuddy/

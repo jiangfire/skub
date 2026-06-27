@@ -1,0 +1,297 @@
+// ─── Skills Hub Prisma Schema ───
+// Aligns with Plan §2 数据模型 and Spec §3 核心概念
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ──
+
+enum Role {
+  Visitor
+  Contributor
+  Reviewer
+  Owner
+}
+
+enum UserStatus {
+  Active
+  Disabled
+}
+
+enum SkillStatus {
+  Draft
+  Pending
+  Approved
+  Rejected
+  Offline
+}
+
+enum ReviewDecision {
+  Approve
+  Reject
+  RequestChanges
+}
+
+enum CallStatus {
+  Success
+  Failed
+  Timeout
+}
+
+// ── Models ──
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  avatar       String?
+  passwordHash String
+  role         Role       @default(Visitor)
+  status       UserStatus @default(Active)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  skills         Skill[]
+  reviews        Review[]
+  comments       Comment[]
+  ratings        Rating[]
+  favorites      Favorite[]
+  likes          Like[]
+  apiKeys        ApiKey[]
+  callLogs       CallLog[]
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+
+  @@index([role, status])
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String
+  parentId  String?
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+  sort      Int        @default(0)
+  createdAt DateTime   @default(now())
+
+  skills Skill[]
+
+  @@index([parentId])
+}
+
+model Skill {
+  id         String      @id @default(cuid())
+  slug       String      @unique
+  name       String
+  summary    String      @db.Text
+  tags       String[]    @default([])
+  ownerId    String
+  owner      User        @relation(fields: [ownerId], references: [id])
+  categoryId String?
+  category   Category?   @relation(fields: [categoryId], references: [id])
+  status     SkillStatus @default(Draft)
+  endpointUrl String?    // HTTP endpoint for skill execution (v1: containerized microservice)
+
+  // Redundant fields (read optimization) — mirror latestVersion.
+  // Write path: only via SkillVersion creation, then sync here.
+  latestVersionId String?  @unique
+  latestVersion   SkillVersion? @relation("LatestVersion", fields: [latestVersionId], references: [id])
+  skillMd         String?       @db.Text
+  inputSchema     Json?
+  outputSchema    Json?
+
+  // Aggregated stats (updated by background aggregation)
+  ratingAvg   Float   @default(0)
+  ratingCount Int     @default(0)
+  callCount   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  versions        SkillVersion[]
+  digitalEmployee DigitalEmployee?
+  reviews         Review[]
+  comments        Comment[]
+  ratings         Rating[]
+  favorites       Favorite[]
+  likes           Like[]
+  callLogs        CallLog[]
+
+  @@index([status, createdAt])
+  @@index([categoryId, status])
+  @@index([ownerId, status])
+}
+
+model SkillVersion {
+  id          String   @id @default(cuid())
+  skillId     String
+  skill       Skill    @relation(fields: [skillId], references: [id])
+  version     String // SemVer string e.g. "1.0.0"
+  skillMd     String   @db.Text
+  inputSchema Json
+  outputSchema Json
+  changelog   String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  // Back-reference: which skill points to this as latest
+  latestForSkill Skill? @relation("LatestVersion")
+
+  reviews  Review[]
+  callLogs CallLog[]
+
+  @@unique([skillId, version])
+  @@index([skillId, createdAt])
+}
+
+model DigitalEmployee {
+  id            String @id @default(cuid())
+  skillId       String @unique
+  skill         Skill  @relation(fields: [skillId], references: [id])
+  personaName   String
+  avatarUrl     String
+  personaIntro  String  @db.Text
+  welcomeMessage String @db.Text
+  roleDesc      String  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Review {
+  id        String         @id @default(cuid())
+  skillId   String
+  skill     Skill          @relation(fields: [skillId], references: [id])
+  versionId String
+  version   SkillVersion   @relation(fields: [versionId], references: [id])
+  reviewerId String
+  reviewer  User           @relation(fields: [reviewerId], references: [id])
+  decision  ReviewDecision
+  comment   String         @db.Text
+  createdAt DateTime       @default(now())
+
+  @@index([skillId, createdAt])
+  @@index([reviewerId, createdAt])
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  skillId   String
+  skill     Skill     @relation(fields: [skillId], references: [id])
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  content   String    @db.Text
+  parentId  String? // one-level reply only
+  parent    Comment?  @relation("CommentReply", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReply")
+  createdAt DateTime  @default(now())
+
+  @@index([skillId, createdAt])
+  @@index([parentId])
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  stars     Int // 1-5
+  createdAt DateTime @default(now())
+
+  @@unique([skillId, userId])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, skillId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, skillId])
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  name       String
+  keyHash    String    @unique
+  prefix     String // first 8 chars for display
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  callLogs CallLog[]
+
+  @@index([userId])
+}
+
+model CallLog {
+  id        String      @id @default(cuid())
+  skillId   String
+  skill     Skill       @relation(fields: [skillId], references: [id])
+  versionId String?
+  version   SkillVersion? @relation(fields: [versionId], references: [id])
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id])
+  apiKeyId  String?
+  apiKey    ApiKey?     @relation(fields: [apiKeyId], references: [id])
+  status    CallStatus
+  latencyMs Int
+  error     String?
+  createdAt DateTime    @default(now())
+
+  @@index([skillId, createdAt])
+  @@index([apiKeyId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String // e.g. "SKILL_PUBLISHED", "FORCE_OFFLINE", "ROLE_CHANGED"
+  targetType String // "Skill" | "User" | "Category" | etc.
+  targetId   String?
+  payload    Json // full context including reason, old/new values
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   // recipient
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // e.g. "REVIEW_RESULT", "FORCE_OFFLINE", "ROLE_CHANGED"
+  title     String
+  content   String   @db.Text
+  read      Boolean  @default(false)
+  link      String?  // optional URL to navigate to
+  createdAt DateTime @default(now())
+
+  @@index([userId, read, createdAt])
+  @@index([userId, createdAt])
+}

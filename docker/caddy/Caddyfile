@@ -1,0 +1,14 @@
+# ─── Caddy Reverse Proxy ───
+# Terminates HTTPS and proxies to the Next.js app.
+
+{$DOMAIN:localhost} {
+    # Proxy all requests to the Next.js app
+    reverse_proxy app:3000
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+}
