@@ -110,7 +110,10 @@ export async function getUserFavorite(userId: string, skillId: string) {
 
 export async function listUserFavorites(userId: string, limit = 100) {
   const favorites = await prisma.favorite.findMany({
-    where: { userId },
+    where: {
+      userId,
+      skill: { status: "Approved" },
+    },
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {
@@ -129,7 +132,10 @@ export async function listUserFavorites(userId: string, limit = 100) {
 
 export async function listUserLikes(userId: string, limit = 100) {
   const likes = await prisma.like.findMany({
-    where: { userId },
+    where: {
+      userId,
+      skill: { status: "Approved" },
+    },
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {

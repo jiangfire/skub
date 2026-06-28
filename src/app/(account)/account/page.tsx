@@ -1,13 +1,16 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getSessionUser } from "@/lib/api/session";
+import { requireActiveUser } from "@/lib/api/session";
 import { listUserFavorites, listUserLikes } from "@/server/community.service";
 
+const ROLE_LABELS: Record<string, string> = {
+  Visitor: "访客",
+  Contributor: "贡献者",
+  Reviewer: "审核员",
+  Owner: "超级管理员",
+};
+
 export default async function AccountPage() {
-  const user = await getSessionUser();
-  if (!user) {
-    redirect("/login");
-  }
+  const user = await requireActiveUser();
 
   const [favorites, likes] = await Promise.all([
     listUserFavorites(user.id, 3),
@@ -28,7 +31,7 @@ export default async function AccountPage() {
           </div>
           <div>
             <dt className="inline font-medium text-gray-700">角色：</dt>
-            <dd className="inline text-gray-600">{user.role}</dd>
+            <dd className="inline text-gray-600">{ROLE_LABELS[user.role] ?? user.role}</dd>
           </div>
         </dl>
       </div>

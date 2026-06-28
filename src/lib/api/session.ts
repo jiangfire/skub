@@ -39,6 +39,17 @@ export async function requireSessionUser(): Promise<AuthUser> {
 }
 
 /**
+ * Get the current active session user, or throw if not authenticated or disabled.
+ */
+export async function requireActiveUser(): Promise<AuthUser> {
+  const user = await getSessionUser();
+  if (!user || user.status === "Disabled") {
+    throw new Error("UNAUTHORIZED: Authentication required");
+  }
+  return user;
+}
+
+/**
  * Get the current session user and assert they can perform an action.
  * @throws Error with "UNAUTHORIZED" if not logged in.
  * @throws Error with "FORBIDDEN" if lacks permission.

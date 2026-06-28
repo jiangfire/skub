@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const ITEMS = [
   { href: "/account", label: "个人中心" },
@@ -12,6 +12,7 @@ const ITEMS = [
 
 export default function UserNavDropdown({ userName }: { userName: string }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -45,19 +46,24 @@ export default function UserNavDropdown({ userName }: { userName: string }) {
     };
   }, [open]);
 
+  useEffect(() => {
+    setActiveIndex(open ? 0 : -1);
+  }, [open]);
+
   function toggle() {
-    setOpen((prev) => {
-      const next = !prev;
-      setActiveIndex(next ? 0 : -1);
-      return next;
-    });
+    setOpen((prev) => !prev);
+  }
+
+  function navigate(href: string) {
+    setOpen(false);
+    setActiveIndex(-1);
+    router.push(href);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
     if (!open && (e.key === "Enter" || e.key === " " || e.key === "ArrowDown")) {
       e.preventDefault();
       setOpen(true);
-      setActiveIndex(0);
       return;
     }
 
@@ -83,21 +89,16 @@ export default function UserNavDropdown({ userName }: { userName: string }) {
       case "Escape":
         e.preventDefault();
         setOpen(false);
-        setActiveIndex(-1);
         buttonRef.current?.focus();
         break;
       case "Tab":
         setOpen(false);
-        setActiveIndex(-1);
         break;
       case "Enter":
       case " ":
         if (activeIndex >= 0) {
           e.preventDefault();
-          const href = ITEMS[activeIndex].href;
-          setOpen(false);
-          setActiveIndex(-1);
-          window.location.href = href;
+          navigate(ITEMS[activeIndex].href);
         }
         break;
     }
@@ -113,6 +114,7 @@ export default function UserNavDropdown({ userName }: { userName: string }) {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-controls="user-nav-menu"
+        aria-label={`${userName} 用户菜单`}
         className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
       >
         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-xs font-medium text-brand-700">
@@ -146,10 +148,7 @@ export default function UserNavDropdown({ userName }: { userName: string }) {
                 href={item.href}
                 role="menuitem"
                 tabIndex={-1}
-                onClick={() => {
-                  setOpen(false);
-                  setActiveIndex(-1);
-                }}
+                onClick={() => navigate(item.href)}
                 onMouseEnter={() => setActiveIndex(index)}
                 className={`block px-4 py-2 text-sm transition-colors ${
                   activeIndex === index || pathname === item.href
@@ -161,9 +160,10 @@ export default function UserNavDropdown({ userName }: { userName: string }) {
               </Link>
             ))}
             <div className="my-1 border-t border-neutral-100" />
-            <form action="/api/auth/logout" method="POST" role="menuitem">
+            <form action="/api/auth/logout" method="POST">
               <button
                 type="submit"
+                role="menuitem"
                 className="block w-full px-4 py-2 text-left text-sm text-neutral-600 transition-colors hover:bg-neutral-50 hover:text-neutral-900"
               >
                 退出
