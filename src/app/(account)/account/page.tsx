@@ -13,9 +13,12 @@ export default async function AccountPage() {
   const user = await requireActiveUser();
 
   const [favorites, likes] = await Promise.all([
-    listUserFavorites(user.id, 3),
-    listUserLikes(user.id, 3),
+    listUserFavorites(user.id, 1, 3),
+    listUserLikes(user.id, 1, 3),
   ]);
+
+  const recentFavorites = favorites.skills;
+  const recentLikes = likes.skills;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -44,7 +47,7 @@ export default async function AccountPage() {
         >
           <div>
             <p className="font-medium text-gray-900">我的收藏</p>
-            <p className="text-xs text-gray-500">共 {favorites.length} 个技能</p>
+            <p className="text-xs text-gray-500">共 {favorites.total} 个技能</p>
           </div>
           <span className="text-amber-500">❯</span>
         </Link>
@@ -54,7 +57,7 @@ export default async function AccountPage() {
         >
           <div>
             <p className="font-medium text-gray-900">我点赞的</p>
-            <p className="text-xs text-gray-500">共 {likes.length} 个技能</p>
+            <p className="text-xs text-gray-500">共 {likes.total} 个技能</p>
           </div>
           <span className="text-pink-500">❯</span>
         </Link>
@@ -68,11 +71,11 @@ export default async function AccountPage() {
             查看全部
           </Link>
         </div>
-        {favorites.length === 0 ? (
+        {recentFavorites.length === 0 ? (
           <p className="text-sm text-gray-400">暂无收藏</p>
         ) : (
           <div className="space-y-2">
-            {favorites.map((skill) => (
+            {recentFavorites.map((skill) => (
               <Link
                 key={skill.id}
                 href={`/skills/${skill.slug}`}
@@ -94,11 +97,11 @@ export default async function AccountPage() {
             查看全部
           </Link>
         </div>
-        {likes.length === 0 ? (
+        {recentLikes.length === 0 ? (
           <p className="text-sm text-gray-400">暂无点赞</p>
         ) : (
           <div className="space-y-2">
-            {likes.map((skill) => (
+            {recentLikes.map((skill) => (
               <Link
                 key={skill.id}
                 href={`/skills/${skill.slug}`}

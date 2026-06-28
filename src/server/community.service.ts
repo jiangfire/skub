@@ -108,48 +108,78 @@ export async function getUserFavorite(userId: string, skillId: string) {
   return !!favorite;
 }
 
-export async function listUserFavorites(userId: string, limit = 100) {
-  const favorites = await prisma.favorite.findMany({
-    where: {
-      userId,
-      skill: { status: "Approved" },
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-    include: {
-      skill: {
-        include: {
-          owner: { select: { id: true, name: true } },
-          category: { select: { id: true, name: true } },
-          _count: { select: { likes: true, favorites: true } },
+export async function listUserFavorites(userId: string, page = 1, pageSize = 20) {
+  const [records, total] = await Promise.all([
+    prisma.favorite.findMany({
+      where: {
+        userId,
+        skill: { status: "Approved" },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        skill: {
+          include: {
+            owner: { select: { id: true, name: true } },
+            category: { select: { id: true, name: true } },
+            _count: { select: { likes: true, favorites: true } },
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.favorite.count({
+      where: {
+        userId,
+        skill: { status: "Approved" },
+      },
+    }),
+  ]);
 
-  return favorites.map((f) => f.skill);
+  return {
+    skills: records.map((f) => f.skill),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  };
 }
 
-export async function listUserLikes(userId: string, limit = 100) {
-  const likes = await prisma.like.findMany({
-    where: {
-      userId,
-      skill: { status: "Approved" },
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-    include: {
-      skill: {
-        include: {
-          owner: { select: { id: true, name: true } },
-          category: { select: { id: true, name: true } },
-          _count: { select: { likes: true, favorites: true } },
+export async function listUserLikes(userId: string, page = 1, pageSize = 20) {
+  const [records, total] = await Promise.all([
+    prisma.like.findMany({
+      where: {
+        userId,
+        skill: { status: "Approved" },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        skill: {
+          include: {
+            owner: { select: { id: true, name: true } },
+            category: { select: { id: true, name: true } },
+            _count: { select: { likes: true, favorites: true } },
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.like.count({
+      where: {
+        userId,
+        skill: { status: "Approved" },
+      },
+    }),
+  ]);
 
-  return likes.map((l) => l.skill);
+  return {
+    skills: records.map((l) => l.skill),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  };
 }
 
 // ── Favorites (toggle, race-safe via upsert) ──
