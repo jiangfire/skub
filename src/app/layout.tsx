@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "@/styles/globals.css";
+import "highlight.js/styles/github-dark.css";
 import Navbar from "@/components/Navbar";
+import { ToastProvider } from "@/components/Toast";
 
 export const metadata: Metadata = {
   title: "Skills Hub",
@@ -15,8 +17,10 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="min-h-screen bg-gray-50 antialiased">
-        <Navbar />
-        {children}
+        <ToastProvider>
+          <Navbar />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

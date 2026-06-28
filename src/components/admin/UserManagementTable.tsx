@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/components/Toast";
 
 interface UserRow {
   id: string;
@@ -43,6 +44,7 @@ export default function UserManagementTable({
   pageSize: number;
   totalPages: number;
 }) {
+  const { showToast } = useToast();
   const [users, setUsers] = useState(initialUsers);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteForm, setInviteForm] = useState({
@@ -95,9 +97,10 @@ export default function UserManagementTable({
     });
     if (res.ok) {
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
+      showToast("角色已更新", "success");
     } else {
       const data = await res.json();
-      alert(data.message ?? "角色分配失败");
+      showToast(data.message ?? "角色分配失败", "error");
     }
   }
 
@@ -110,9 +113,10 @@ export default function UserManagementTable({
     });
     if (res.ok) {
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, status: newStatus } : u)));
+      showToast(`用户已${newStatus === "Active" ? "启用" : "停用"}`, "success");
     } else {
       const data = await res.json();
-      alert(data.message ?? "状态更新失败");
+      showToast(data.message ?? "状态更新失败", "error");
     }
   }
 
@@ -121,9 +125,10 @@ export default function UserManagementTable({
     const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
     if (res.ok) {
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, status: "Disabled" } : u)));
+      showToast("用户已停用", "success");
     } else {
       const data = await res.json();
-      alert(data.message ?? "停用失败");
+      showToast(data.message ?? "停用失败", "error");
     }
   }
 

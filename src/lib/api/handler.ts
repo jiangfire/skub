@@ -1,18 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import type { ApiError } from "@/types/domain";
 import { unauthorized, forbidden, notFound, stateInvalid, conflict, internal } from "./errors";
 import { SkillServiceError } from "@/server/skill.service";
 import { AuthError } from "@/server/auth.service";
 import { AdminServiceError } from "@/server/admin.service";
-import { DigitalEmployeeServiceError } from "@/server/digital-employee.service";
 
-// ─── Unified Error Handler ───
-// Converts service-layer errors to HTTP responses (DRY).
-// Each API route wraps its handler with this.
-
-// Pragmatic typing: Next.js route handlers vary in signature,
-// actual type safety is provided at each call site.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Unified error handler: wraps route handlers with consistent error mapping.
+// Route handlers use Next.js convention: (request, { params }) => Response
 type RouteHandler = (req: any, ctx?: any) => Promise<NextResponse>;
 
 export function withErrorHandler(handler: RouteHandler): RouteHandler {
@@ -50,17 +45,6 @@ export function withErrorHandler(handler: RouteHandler): RouteHandler {
               { code: "VALIDATION_ERROR", message: e.message },
               { status: 422 },
             ),
-        };
-        const handler = codeMap[e.code];
-        if (handler) return handler();
-      }
-
-      // Digital employee service errors
-      if (e instanceof DigitalEmployeeServiceError) {
-        const codeMap: Record<string, () => NextResponse<ApiError>> = {
-          NOT_FOUND: () => notFound(e.message),
-          FORBIDDEN: () => forbidden(e.message),
-          CONFLICT: () => conflict(e.message),
         };
         const handler = codeMap[e.code];
         if (handler) return handler();

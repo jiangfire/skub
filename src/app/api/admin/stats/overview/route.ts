@@ -5,7 +5,7 @@ import { withErrorHandler } from "@/lib/api/handler";
 
 // GET /api/admin/stats/overview — Hub dashboard stats (Owner only)
 export const GET = withErrorHandler(async () => {
-  const user = await requirePermission("manageUsers");
+  const user = await requirePermission("viewStats");
   const overview = await getHubOverview(user);
   return NextResponse.json(overview);
 });

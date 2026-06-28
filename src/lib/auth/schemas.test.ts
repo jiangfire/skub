@@ -83,8 +83,6 @@ describe("Skill Validation Schemas", () => {
       tags: ["legal", "nlp"],
       categoryId: "cat-1",
       skillMd: "---\nname: contract-extractor\n---\n# Contract Extractor",
-      inputSchema: { type: "object", properties: {} },
-      outputSchema: { type: "object", properties: {} },
     };
 
     it("accepts valid skill input", () => {
@@ -119,14 +117,6 @@ describe("Skill Validation Schemas", () => {
 
     it("rejects empty skillMd", () => {
       const result = createSkillSchema.safeParse({ ...validInput, skillMd: "" });
-      expect(result.success).toBe(false);
-    });
-
-    it("rejects non-object inputSchema", () => {
-      const result = createSkillSchema.safeParse({
-        ...validInput,
-        inputSchema: "not-an-object",
-      });
       expect(result.success).toBe(false);
     });
   });

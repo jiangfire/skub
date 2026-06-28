@@ -47,11 +47,15 @@ export type PermissionAction =
   | "forceOffline"
   | "manageUsers"
   | "manageCategories"
-  | "viewAuditLogs";
+  | "viewAuditLogs"
+  | "deleteSkill"
+  | "manageSkills"
+  | "viewStats";
 
 // ── User (minimal shape for permission checks) ──
 export interface AuthUser {
   id: string;
+  name: string;
   role: Role;
   status: "Active" | "Disabled";
 }

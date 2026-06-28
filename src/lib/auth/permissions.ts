@@ -22,6 +22,9 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, Readonly<Record<PermissionA
       manageUsers: false,
       manageCategories: false,
       viewAuditLogs: false,
+      deleteSkill: false,
+      manageSkills: false,
+      viewStats: false,
     }),
     Contributor: Object.freeze({
       browse: true,
@@ -39,6 +42,9 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, Readonly<Record<PermissionA
       manageUsers: false,
       manageCategories: false,
       viewAuditLogs: false,
+      deleteSkill: false,
+      manageSkills: false,
+      viewStats: false,
     }),
     Reviewer: Object.freeze({
       browse: true,
@@ -56,6 +62,9 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, Readonly<Record<PermissionA
       manageUsers: false,
       manageCategories: false,
       viewAuditLogs: false,
+      deleteSkill: false,
+      manageSkills: false,
+      viewStats: false,
     }),
     Owner: Object.freeze({
       browse: true,
@@ -73,6 +82,9 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, Readonly<Record<PermissionA
       manageUsers: true,
       manageCategories: true,
       viewAuditLogs: true,
+      deleteSkill: true,
+      manageSkills: true,
+      viewStats: true,
     }),
   });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/components/Toast";
 
 interface CategoryRow {
   id: string;
@@ -17,6 +18,7 @@ export default function CategoryManager({
 }: {
   categories: CategoryRow[];
 }) {
+  const { showToast } = useToast();
   const [categories, setCategories] = useState(initialCategories);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -62,6 +64,7 @@ export default function CategoryManager({
     setShowForm(false);
     setEditId(null);
     setForm({ name: "", parentId: null, sort: 0 });
+    showToast(editId ? "分类已更新" : "分类已创建", "success");
   }
 
   async function handleDelete(id: string) {
@@ -69,9 +72,10 @@ export default function CategoryManager({
     const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
     if (res.ok) {
       setCategories((prev) => prev.filter((c) => c.id !== id && c.parentId !== id));
+      showToast("分类已删除", "success");
     } else {
       const data = await res.json();
-      alert(data.message ?? "删除失败");
+      showToast(data.message ?? "删除失败", "error");
     }
   }
 

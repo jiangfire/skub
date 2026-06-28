@@ -99,9 +99,10 @@ export async function resolveUser(payload: JwtPayload): Promise<AuthUser | null>
 
 // ─── Helpers ───
 
-function toAuthUser(user: { id: string; role: string; status: string }): AuthUser {
+function toAuthUser(user: { id: string; name: string; role: string; status: string }): AuthUser {
   return {
     id: user.id,
+    name: user.name,
     role: user.role as AuthUser["role"],
     status: user.status as AuthUser["status"],
   };

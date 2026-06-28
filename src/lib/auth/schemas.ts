@@ -35,16 +35,12 @@ export const createSkillSchema = z.object({
   categoryId: z.string().optional().nullable(),
   endpointUrl: z.string().url().optional().nullable(),
   skillMd: z.string().min(1),
-  inputSchema: z.record(z.unknown()),
-  outputSchema: z.record(z.unknown()),
   // Optional: attach digital employee persona at creation time
   digitalEmployee: digitalEmployeeSchema.optional(),
 });
 
 export const createVersionSchema = z.object({
   skillMd: z.string().min(1),
-  inputSchema: z.record(z.unknown()),
-  outputSchema: z.record(z.unknown()),
   changelog: z.string().optional(),
   version: z.string().regex(/^\d+\.\d+\.\d+$/, "version must be SemVer (e.g. 1.0.0)"),
 });
@@ -67,12 +63,6 @@ export const createCommentSchema = z.object({
 
 export const createRatingSchema = z.object({
   stars: z.number().int().min(1).max(5),
-});
-
-// ─── API Key Schemas ───
-
-export const createApiKeySchema = z.object({
-  name: z.string().min(1).max(50),
 });
 
 // ─── Force Offline Schemas ───
@@ -136,7 +126,6 @@ export type CreateVersionInput = z.infer<typeof createVersionSchema>;
 export type ReviewDecisionInput = z.infer<typeof reviewDecisionSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type CreateRatingInput = z.infer<typeof createRatingSchema>;
-export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;
 export type ForceOfflineInput = z.infer<typeof forceOfflineSchema>;
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

@@ -11,20 +11,34 @@ interface Comment {
   replies?: Comment[];
 }
 
-export default function CommentSection({
-  skillId,
-  comments,
-  isLoggedIn,
-}: {
-  skillId: string;
+interface CommentSectionProps {
+  slug: string;
   comments: Comment[];
+  total: number;
+  initialPage: number;
+  totalPages: number;
   isLoggedIn: boolean;
-}) {
+}
+
+export default function CommentSection({
+  slug,
+  comments: initialComments,
+  total,
+  initialPage,
+  totalPages,
+  isLoggedIn,
+}: CommentSectionProps) {
   const [content, setContent] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [comments, setComments] = useState(initialComments);
+  const [page, setPage] = useState(initialPage);
+  const [currentTotal, setCurrentTotal] = useState(total);
+  const [currentTotalPages, setCurrentTotalPages] = useState(totalPages);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,15 +47,18 @@ export default function CommentSection({
     setError("");
 
     try {
-      const res = await fetch(`/api/skills/${skillId}/comments`, {
+      const res = await fetch(`/api/skills/${slug}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
 
       if (!res.ok) throw new Error("评论失败");
+      const data = await res.json();
       setContent("");
-      window.location.reload();
+      setComments((prev) => [data.comment, ...prev]);
+      setCurrentTotal((prev) => prev + 1);
+      setCurrentTotalPages((_) => Math.ceil((currentTotal + 1) / 20) || 1);
     } catch {
       setError("评论发布失败");
     } finally {
@@ -55,16 +72,22 @@ export default function CommentSection({
     setError("");
 
     try {
-      const res = await fetch(`/api/skills/${skillId}/comments`, {
+      const res = await fetch(`/api/skills/${slug}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: replyContent, parentId }),
       });
 
       if (!res.ok) throw new Error("回复失败");
+      const data = await res.json();
       setReplyContent("");
       setReplyTo(null);
-      window.location.reload();
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === parentId ? { ...c, replies: [...(c.replies ?? []), data.comment] } : c,
+        ),
+      );
+      setCurrentTotal((prev) => prev + 1);
     } catch {
       setError("回复失败");
     } finally {
@@ -72,9 +95,28 @@ export default function CommentSection({
     }
   }
 
+  async function loadNextPage() {
+    if (page >= currentTotalPages || loadingMore) return;
+    setLoadingMore(true);
+
+    try {
+      const res = await fetch(`/api/skills/${slug}/comments?page=${page + 1}`);
+      if (!res.ok) throw new Error("加载失败");
+      const data = await res.json();
+      setComments((prev) => [...prev, ...data.comments]);
+      setPage(data.page);
+      setCurrentTotal(data.total);
+      setCurrentTotalPages(data.totalPages);
+    } catch {
+      setError("评论加载失败");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   return (
     <div>
-      <h2 className="mb-3 text-lg font-semibold text-gray-900">评论 ({comments.length})</h2>
+      <h2 className="mb-3 text-lg font-semibold text-gray-900">评论 ({currentTotal})</h2>
 
       {error && <div className="mb-3 rounded-md bg-red-50 p-2 text-sm text-red-600">{error}</div>}
 
@@ -180,6 +222,17 @@ export default function CommentSection({
           ))
         )}
       </div>
+
+      {page < currentTotalPages && (
+        <button
+          type="button"
+          onClick={loadNextPage}
+          disabled={loadingMore}
+          className="mt-4 w-full rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+        >
+          {loadingMore ? "加载中..." : "下一页"}
+        </button>
+      )}
     </div>
   );
 }

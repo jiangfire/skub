@@ -6,13 +6,16 @@ import { createCommentSchema } from "@/lib/auth/schemas";
 import { withErrorHandler } from "@/lib/api/handler";
 import { validationError, notFound, stateInvalid, forbidden } from "@/lib/api/errors";
 
-// GET /api/skills/:slug/comments
-export const GET = withErrorHandler(async (_request: NextRequest, ctx) => {
+// GET /api/skills/:slug/comments?page=1
+export const GET = withErrorHandler(async (request: NextRequest, ctx) => {
   const { slug } = await ctx!.params;
   const skill = await prisma.skill.findUnique({ where: { slug } });
   if (!skill || skill.status !== "Approved") return notFound("Skill not found");
 
-  const result = await listComments(skill.id);
+  const { searchParams } = new URL(request.url);
+  const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
+
+  const result = await listComments(skill.id, page, 20);
   return NextResponse.json(result);
 });
 

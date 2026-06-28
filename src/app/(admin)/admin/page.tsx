@@ -1,15 +1,21 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSessionUser } from "@/lib/api/session";
+import { can } from "@/lib/auth/permissions";
 import { getHubOverview } from "@/server/admin.service";
+
+import StatCard from "@/components/admin/StatCard";
 
 export default async function AdminHomePage() {
   const user = await getSessionUser();
-  if (!user || user.role !== "Owner") {
+  if (!user || !can(user, "viewStats")) {
     redirect("/login");
   }
 
-  const overview = await getHubOverview(user).catch(() => null);
+  const overview = await getHubOverview(user).catch((e) => {
+    console.error("Failed to load hub overview", e);
+    return null;
+  });
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -17,36 +23,26 @@ export default async function AdminHomePage() {
 
       {/* Quick Stats Cards */}
       {overview && (
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-lg border border-gray-200 bg-white p-5">
-            <p className="text-sm text-gray-500">技能总数</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{overview.skills.total}</p>
-            <p className="mt-1 text-xs text-gray-400">
-              上架 {overview.skills.approved} · 待审 {overview.skills.pending}
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-5">
-            <p className="text-sm text-gray-500">用户总数</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{overview.users.total}</p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-5">
-            <p className="text-sm text-gray-500">调用总数</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{overview.calls.total}</p>
-            <p className="mt-1 text-xs text-gray-400">近7天 {overview.calls.last7Days}</p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-5">
-            <p className="text-sm text-gray-500">成功率（7天）</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{overview.calls.successRate}%</p>
-            <p className="mt-1 text-xs text-gray-400">
-              成功 {overview.calls.breakdown.success} · 失败 {overview.calls.breakdown.failed} ·
-              超时 {overview.calls.breakdown.timeout}
-            </p>
-          </div>
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard
+            label="技能总数"
+            value={overview.skills.total}
+            subtext={`上架 ${overview.skills.approved} · 待审 ${overview.skills.pending}`}
+          />
+          <StatCard label="用户总数" value={overview.users.total} />
+          <StatCard label="总下载次数" value={overview.downloads.total} />
         </div>
       )}
 
       {/* Management Links */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Link
+          href="/admin/skills"
+          className="rounded-lg border border-gray-200 bg-white p-5 transition hover:border-blue-400 hover:shadow-sm"
+        >
+          <h2 className="font-semibold text-gray-900">技能管理</h2>
+          <p className="mt-1 text-sm text-gray-500">查看、搜索、删除 Skill</p>
+        </Link>
         <Link
           href="/admin/users"
           className="rounded-lg border border-gray-200 bg-white p-5 transition hover:border-blue-400 hover:shadow-sm"
@@ -72,8 +68,8 @@ export default async function AdminHomePage() {
           href="/admin/stats"
           className="rounded-lg border border-gray-200 bg-white p-5 transition hover:border-blue-400 hover:shadow-sm"
         >
-          <h2 className="font-semibold text-gray-900">数据大盘</h2>
-          <p className="mt-1 text-sm text-gray-500">调用趋势、Top 10、活跃贡献者</p>
+          <h2 className="font-semibold text-gray-900">平台概览</h2>
+          <p className="mt-1 text-sm text-gray-500">Top 10 技能、活跃贡献者</p>
         </Link>
       </div>
     </div>

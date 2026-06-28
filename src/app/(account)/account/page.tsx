@@ -1,29 +1,24 @@
 import Link from "next/link";
 import { requireSessionUser } from "@/lib/api/session";
-import { listApiKeys } from "@/server/apikey.service";
 import { prisma } from "@/lib/prisma";
-import ApiKeyManager from "@/components/ApiKeyManager";
 
 export default async function AccountPage() {
   const user = await requireSessionUser();
 
-  const [apiKeys, favorites] = await Promise.all([
-    listApiKeys(user.id),
-    prisma.favorite.findMany({
-      where: { userId: user.id },
-      include: {
-        skill: {
-          select: {
-            id: true,
-            slug: true,
-            name: true,
-            summary: true,
-          },
+  const favorites = await prisma.favorite.findMany({
+    where: { userId: user.id },
+    include: {
+      skill: {
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          summary: true,
         },
       },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -39,9 +34,6 @@ export default async function AccountPage() {
           </div>
         </dl>
       </div>
-
-      {/* API Keys */}
-      <ApiKeyManager initialKeys={apiKeys} />
 
       {/* Favorites */}
       <div className="mt-6">

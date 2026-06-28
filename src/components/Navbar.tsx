@@ -1,60 +1,90 @@
 import Link from "next/link";
 import { getSessionUser } from "@/lib/api/session";
 import NotificationBell from "@/components/NotificationBell";
+import AdminNavDropdown from "@/components/admin/AdminNavDropdown";
 
 export default async function Navbar() {
   const user = await getSessionUser();
 
+  const isContributorOrAbove =
+    user && (user.role === "Contributor" || user.role === "Reviewer" || user.role === "Owner");
+  const isReviewerOrAbove = user && (user.role === "Reviewer" || user.role === "Owner");
+  const isOwner = user && user.role === "Owner";
+
   return (
-    <nav className="border-b border-gray-200 bg-white">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="text-lg font-bold text-gray-900">
-            Skills Hub
+    <nav className="border-neutral-200/80 sticky top-0 z-50 border-b bg-white/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
+        {/* --- Left: Brand + Main Nav --- */}
+        <div className="flex items-center gap-1 sm:gap-5">
+          {/* Brand */}
+          <Link
+            href="/"
+            className="group flex items-center gap-2 text-sm font-bold text-neutral-900"
+          >
+            <span className="shadow-brand-600/20 flex h-7 w-7 items-center justify-center rounded-md bg-brand-600 text-white shadow-sm transition-transform duration-200 group-hover:scale-105">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+            </span>
+            <span className="hidden tracking-tight sm:inline-block">Skills Hub</span>
           </Link>
-          <Link href="/skills" className="text-sm text-gray-600 hover:text-gray-900">
-            技能市场
-          </Link>
-          {user &&
-            (user.role === "Contributor" || user.role === "Reviewer" || user.role === "Owner") && (
-              <Link href="/studio" className="text-sm text-gray-600 hover:text-gray-900">
-                工作台
-              </Link>
-            )}
-          {user && (user.role === "Reviewer" || user.role === "Owner") && (
-            <Link href="/review" className="text-sm text-gray-600 hover:text-gray-900">
-              审核台
-            </Link>
-          )}
-          {user && user.role === "Owner" && (
-            <Link href="/admin" className="text-sm text-gray-600 hover:text-gray-900">
-              管理后台
-            </Link>
+
+          {/* Main Nav Links */}
+          <div className="ml-2 hidden items-center gap-4 sm:flex">
+            <NavLink href="/skills">技能市场</NavLink>
+
+            {isContributorOrAbove && <NavLink href="/studio">工作台</NavLink>}
+
+            {isReviewerOrAbove && <NavLink href="/review">审核台</NavLink>}
+
+            {isOwner && <AdminNavDropdown />}
+          </div>
+
+          {/* Mobile admin link */}
+          {isOwner && (
+            <div className="flex items-center sm:hidden">
+              <NavLink href="/admin">管理</NavLink>
+            </div>
           )}
         </div>
 
-        <div className="flex items-center gap-4">
+        {/* --- Right: User Area --- */}
+        <div className="flex items-center gap-1 sm:gap-3">
           {user ? (
             <>
               <NotificationBell />
-              <Link href="/account" className="text-sm text-gray-600 hover:text-gray-900">
-                个人中心
+              <Link
+                href="/account"
+                className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+              >
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-xs font-medium text-brand-700">
+                  {user.name?.charAt(0).toUpperCase() ?? "?"}
+                </div>
+                <span className="hidden text-sm font-medium sm:inline-block">{user.name}</span>
               </Link>
               <form action="/api/auth/logout" method="POST">
-                <button type="submit" className="text-sm text-gray-600 hover:text-gray-900">
+                <button type="submit" className="btn-ghost text-sm">
                   退出
                 </button>
               </form>
             </>
           ) : (
             <>
-              <Link href="/login" className="text-sm text-gray-600 hover:text-gray-900">
+              <Link href="/login" className="btn-ghost text-sm">
                 登录
               </Link>
-              <Link
-                href="/register"
-                className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-              >
+              <Link href="/register" className="btn-primary text-sm">
                 注册
               </Link>
             </>
@@ -62,5 +92,14 @@ export default async function Navbar() {
         </div>
       </div>
     </nav>
+  );
+}
+
+/* --- NavLink Sub-Component --- */
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="nav-link text-sm">
+      {children}
+    </Link>
   );
 }

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Prisma, Role } from "@prisma/client";
+import type { Prisma, Role, SkillStatus } from "@prisma/client";
 import { hashPassword } from "@/lib/auth/password";
 import { assertCan } from "@/lib/auth/permissions";
 import { recordAudit, AUDIT_ACTIONS } from "@/server/audit.service";
@@ -463,6 +463,125 @@ export async function exportAuditLogsCsv(user: AuthUser, params: AuditLogQueryIn
 }
 
 // ═══════════════════════════════════════
+// Skill Management
+// ═══════════════════════════════════════
+
+/**
+ * List skills with pagination and optional status filter.
+ * Owner-only: returns skills in all statuses.
+ */
+export async function listSkills(
+  user: AuthUser,
+  params: {
+    q?: string;
+    status?: SkillStatus;
+    page?: number;
+    pageSize?: number;
+  },
+) {
+  assertCan(user, "manageSkills");
+
+  const { q, status, page = 1, pageSize = 20 } = params;
+  const safePage = Math.max(1, Math.floor(page));
+  const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+
+  const where: Prisma.SkillWhereInput = {
+    ...(status && { status }),
+    ...(q && {
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { summary: { contains: q, mode: "insensitive" } },
+      ],
+    }),
+  };
+
+  const [skills, total] = await Promise.all([
+    prisma.skill.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (safePage - 1) * safePageSize,
+      take: safePageSize,
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        status: true,
+        downloadCount: true,
+        ratingAvg: true,
+        ratingCount: true,
+        createdAt: true,
+        owner: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.skill.count({ where }),
+  ]);
+
+  return {
+    skills,
+    total,
+    page: safePage,
+    pageSize: safePageSize,
+    totalPages: Math.ceil(total / safePageSize),
+  };
+}
+
+/**
+ * Hard-delete a skill and all its related data.
+ * Owner-only operation.
+ */
+export async function deleteSkill(user: AuthUser, skillId: string) {
+  assertCan(user, "deleteSkill");
+
+  const skill = await prisma.skill.findUnique({
+    where: { id: skillId },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      ownerId: true,
+      latestVersionId: true,
+    },
+  });
+
+  if (!skill) {
+    throw new AdminServiceError("NOT_FOUND", "Skill not found");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Remove user-generated content first
+    await tx.like.deleteMany({ where: { skillId } });
+    await tx.favorite.deleteMany({ where: { skillId } });
+    await tx.rating.deleteMany({ where: { skillId } });
+    await tx.comment.deleteMany({ where: { skillId } });
+    await tx.review.deleteMany({ where: { skillId } });
+
+    await tx.digitalEmployee.deleteMany({ where: { skillId } });
+
+    // Release the unique FK from Skill.latestVersionId before deleting versions
+    await tx.skill.update({
+      where: { id: skillId },
+      data: { latestVersionId: null },
+    });
+
+    await tx.skillVersion.deleteMany({ where: { skillId } });
+    await tx.skill.delete({ where: { id: skillId } });
+  });
+
+  await recordAudit({
+    userId: user.id,
+    action: AUDIT_ACTIONS.SKILL_DELETED,
+    targetType: "Skill",
+    targetId: skillId,
+    payload: {
+      name: skill.name,
+      slug: skill.slug,
+      ownerId: skill.ownerId,
+    },
+  });
+}
+
+// ═══════════════════════════════════════
 // Hub Stats / Dashboard
 // ═══════════════════════════════════════
 
@@ -470,46 +589,52 @@ export async function exportAuditLogsCsv(user: AuthUser, params: AuditLogQueryIn
  * Hub overview stats for Owner dashboard.
  */
 export async function getHubOverview(user: AuthUser) {
-  assertCan(user, "manageUsers"); // Owner-only
-
-  const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  assertCan(user, "viewStats"); // Owner-only dashboard stats
 
   const [
     totalSkills,
     approvedSkills,
     pendingSkills,
     totalUsers,
-    totalCalls,
-    recentCalls,
-    recentCallStatus,
-    topSkills,
+    totalDownloads,
+    topRatedSkills,
+    topDownloadedSkills,
     topContributors,
-    callsByDay,
   ] = await Promise.all([
     prisma.skill.count(),
     prisma.skill.count({ where: { status: "Approved" } }),
     prisma.skill.count({ where: { status: "Pending" } }),
     prisma.user.count(),
-    prisma.callLog.count(),
-    prisma.callLog.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
-    prisma.callLog.groupBy({
-      by: ["status"],
-      where: { createdAt: { gte: sevenDaysAgo } },
-      _count: true,
-    }),
-    // Top 10 skills by call count
+    prisma.skill
+      .aggregate({ _sum: { downloadCount: true } })
+      .then((r) => r._sum.downloadCount ?? 0),
+    // Top 10 skills by rating
     prisma.skill.findMany({
       where: { status: "Approved" },
-      orderBy: { callCount: "desc" },
+      orderBy: { ratingAvg: "desc" },
       take: 10,
       select: {
         id: true,
         name: true,
         slug: true,
-        callCount: true,
         ratingAvg: true,
         ratingCount: true,
+        downloadCount: true,
+        owner: { select: { name: true } },
+      },
+    }),
+    // Top 10 skills by download count
+    prisma.skill.findMany({
+      where: { status: "Approved" },
+      orderBy: { downloadCount: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        ratingAvg: true,
+        ratingCount: true,
+        downloadCount: true,
         owner: { select: { name: true } },
       },
     }),
@@ -526,21 +651,7 @@ export async function getHubOverview(user: AuthUser) {
         _count: { select: { skills: true } },
       },
     }),
-    // Calls by day (last 7 days)
-    prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
-      SELECT DATE("createdAt") as date, COUNT(*) as count
-      FROM "CallLog"
-      WHERE "createdAt" >= ${sevenDaysAgo}
-      GROUP BY DATE("createdAt")
-      ORDER BY date ASC
-    `,
   ]);
-
-  // Compute success rate for last 7 days
-  const successCount = recentCallStatus.find((s) => s.status === "Success")?._count ?? 0;
-  const failedCount = recentCallStatus.find((s) => s.status === "Failed")?._count ?? 0;
-  const timeoutCount = recentCallStatus.find((s) => s.status === "Timeout")?._count ?? 0;
-  const successRate = recentCalls > 0 ? (successCount / recentCalls) * 100 : 0;
 
   return {
     skills: {
@@ -551,21 +662,11 @@ export async function getHubOverview(user: AuthUser) {
     users: {
       total: totalUsers,
     },
-    calls: {
-      total: totalCalls,
-      last7Days: recentCalls,
-      successRate: Math.round(successRate * 100) / 100,
-      breakdown: {
-        success: successCount,
-        failed: failedCount,
-        timeout: timeoutCount,
-      },
+    downloads: {
+      total: totalDownloads,
     },
-    topSkills,
+    topSkills: topRatedSkills,
+    topDownloadedSkills,
     topContributors,
-    callsByDay: callsByDay.map((d) => ({
-      date: d.date,
-      count: Number(d.count),
-    })),
   };
 }

@@ -22,11 +22,6 @@ export class SkillServiceError extends Error {
   }
 }
 
-// Helper: cast Record<string, unknown> to Prisma JSON input type
-function asJson(value: Record<string, unknown>): Prisma.InputJsonValue {
-  return value as unknown as Prisma.InputJsonValue;
-}
-
 // ─── Create ───
 
 /**
@@ -55,8 +50,6 @@ export async function createSkill(user: AuthUser, input: CreateSkillInput) {
         ownerId: user.id,
         status: "Draft",
         skillMd: input.skillMd,
-        inputSchema: asJson(input.inputSchema),
-        outputSchema: asJson(input.outputSchema),
       },
     });
 
@@ -65,8 +58,6 @@ export async function createSkill(user: AuthUser, input: CreateSkillInput) {
         skillId: skill.id,
         version: "1.0.0",
         skillMd: input.skillMd,
-        inputSchema: asJson(input.inputSchema),
-        outputSchema: asJson(input.outputSchema),
       },
     });
 
@@ -175,7 +166,7 @@ export async function listSkills(params: {
 
   const orderBy: Prisma.SkillOrderByWithRelationInput = {
     latest: { createdAt: "desc" as const },
-    popular: { callCount: "desc" as const },
+    popular: { ratingAvg: "desc" as const },
     rating: { ratingAvg: "desc" as const },
   }[sort];
 
@@ -216,17 +207,7 @@ export async function updateSkill(
   user: AuthUser,
   skillId: string,
   input: Partial<
-    Pick<
-      CreateSkillInput,
-      | "name"
-      | "summary"
-      | "tags"
-      | "categoryId"
-      | "endpointUrl"
-      | "skillMd"
-      | "inputSchema"
-      | "outputSchema"
-    >
+    Pick<CreateSkillInput, "name" | "summary" | "tags" | "categoryId" | "endpointUrl" | "skillMd">
   >,
 ) {
   assertCan(user, "editOwnSkill");
@@ -252,10 +233,7 @@ export async function updateSkill(
   }
 
   // Determine if content changed (requires version sync)
-  const contentChanged =
-    input.skillMd !== undefined ||
-    input.inputSchema !== undefined ||
-    input.outputSchema !== undefined;
+  const contentChanged = input.skillMd !== undefined;
 
   const updateData: Prisma.SkillUpdateInput = {
     status: newStatus,
@@ -270,8 +248,6 @@ export async function updateSkill(
   }
   if (input.endpointUrl !== undefined) updateData.endpointUrl = input.endpointUrl ?? null;
   if (input.skillMd) updateData.skillMd = input.skillMd;
-  if (input.inputSchema) updateData.inputSchema = asJson(input.inputSchema);
-  if (input.outputSchema) updateData.outputSchema = asJson(input.outputSchema);
 
   await prisma.$transaction(async (tx) => {
     await tx.skill.update({ where: { id: skillId }, data: updateData });
@@ -280,8 +256,6 @@ export async function updateSkill(
     if (contentChanged && skill.latestVersionId) {
       const versionUpdate: Prisma.SkillVersionUpdateInput = {};
       if (input.skillMd) versionUpdate.skillMd = input.skillMd;
-      if (input.inputSchema) versionUpdate.inputSchema = asJson(input.inputSchema);
-      if (input.outputSchema) versionUpdate.outputSchema = asJson(input.outputSchema);
       await tx.skillVersion.update({
         where: { id: skill.latestVersionId },
         data: versionUpdate,
@@ -586,8 +560,6 @@ export async function createVersion(
   skillId: string,
   input: {
     skillMd: string;
-    inputSchema: Record<string, unknown>;
-    outputSchema: Record<string, unknown>;
     changelog?: string;
     version?: string;
   },
@@ -624,8 +596,6 @@ export async function createVersion(
         skillId,
         version,
         skillMd: input.skillMd,
-        inputSchema: asJson(input.inputSchema),
-        outputSchema: asJson(input.outputSchema),
         changelog: input.changelog ?? null,
       },
     });
@@ -636,8 +606,6 @@ export async function createVersion(
       data: {
         latestVersionId: newVersion.id,
         skillMd: input.skillMd,
-        inputSchema: asJson(input.inputSchema),
-        outputSchema: asJson(input.outputSchema),
       },
     });
 
@@ -683,7 +651,7 @@ export async function getMySkills(user: AuthUser, page = 1, pageSize = 20) {
       include: {
         latestVersion: true,
         digitalEmployee: true,
-        _count: { select: { callLogs: true } },
+        _count: { select: { likes: true, favorites: true } },
       },
     }),
     prisma.skill.count({ where: { ownerId: user.id } }),

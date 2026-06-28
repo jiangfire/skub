@@ -3,6 +3,10 @@ import { requireSessionUser } from "@/lib/api/session";
 import { prisma } from "@/lib/prisma";
 import StatusBadge from "@/components/StatusBadge";
 import SkillActions from "@/components/SkillActions";
+import ZipUploadButton from "@/components/ZipUploadButton";
+import SkillFileTree from "@/components/SkillFileTree";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
+import { buildFileTree } from "@/lib/file-tree";
 
 export default async function StudioSkillDetailPage({
   params,
@@ -21,6 +25,10 @@ export default async function StudioSkillDetailPage({
       reviews: {
         orderBy: { createdAt: "desc" },
         include: { reviewer: { select: { name: true } } },
+      },
+      files: {
+        orderBy: { path: "asc" },
+        select: { path: true, mimeType: true, size: true },
       },
     },
   });
@@ -60,7 +68,10 @@ export default async function StudioSkillDetailPage({
       )}
 
       {/* Actions */}
-      <SkillActions skillId={skill.id} status={skill.status} />
+      <div className="mb-6 flex flex-wrap gap-3">
+        <SkillActions skillId={skill.id} status={skill.status} />
+        <ZipUploadButton skillId={skill.id} />
+      </div>
 
       {/* Skill Info */}
       <div className="mb-6 rounded-lg border border-gray-200 p-4">
@@ -92,9 +103,21 @@ export default async function StudioSkillDetailPage({
       {skill.skillMd && (
         <div className="mb-6">
           <h2 className="mb-2 text-sm font-semibold text-gray-900">SKILL.md</h2>
-          <pre className="overflow-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-            {skill.skillMd}
-          </pre>
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <div className="max-h-[600px] overflow-auto p-4">
+              <MarkdownRenderer content={skill.skillMd} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Tree */}
+      {skill.files.length > 0 && (
+        <div className="mb-6">
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">
+            📂 文件列表 ({skill.files.length} 个文件)
+          </h2>
+          <SkillFileTree files={buildFileTree(skill.files)} skillSlug={skill.slug} />
         </div>
       )}
 

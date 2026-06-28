@@ -51,10 +51,18 @@ export async function listComments(skillId: string, page = 1, pageSize = 50) {
     prisma.comment.count({ where: { skillId, parentId: null } }),
   ]);
 
-  return { comments, total, page, pageSize };
+  return { comments, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
 
 // ── Ratings ──
+
+export async function getUserRating(userId: string, skillId: string) {
+  const rating = await prisma.rating.findUnique({
+    where: { skillId_userId: { skillId, userId } },
+    select: { stars: true },
+  });
+  return rating?.stars ?? null;
+}
 
 export async function upsertRating(userId: string, skillId: string, stars: number) {
   const result = await prisma.$transaction(async (tx) => {

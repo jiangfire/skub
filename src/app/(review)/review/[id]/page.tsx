@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/api/session";
 import { prisma } from "@/lib/prisma";
 import ReviewForm from "@/components/ReviewForm";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 
 export default async function ReviewDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -32,26 +33,10 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ i
       {skill.skillMd && (
         <div className="mb-6">
           <h2 className="mb-2 text-sm font-semibold text-gray-900">SKILL.md</h2>
-          <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-            {skill.skillMd}
-          </pre>
-        </div>
-      )}
-
-      {/* Schemas */}
-      {skill.latestVersion && (
-        <div className="mb-6 grid grid-cols-2 gap-4">
-          <div>
-            <h3 className="mb-1 text-xs font-semibold text-gray-700">输入 Schema</h3>
-            <pre className="overflow-auto rounded border border-gray-200 bg-gray-50 p-2 text-xs">
-              {JSON.stringify(skill.latestVersion.inputSchema, null, 2)}
-            </pre>
-          </div>
-          <div>
-            <h3 className="mb-1 text-xs font-semibold text-gray-700">输出 Schema</h3>
-            <pre className="overflow-auto rounded border border-gray-200 bg-gray-50 p-2 text-xs">
-              {JSON.stringify(skill.latestVersion.outputSchema, null, 2)}
-            </pre>
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <div className="max-h-[600px] overflow-auto p-4">
+              <MarkdownRenderer content={skill.skillMd} />
+            </div>
           </div>
         </div>
       )}

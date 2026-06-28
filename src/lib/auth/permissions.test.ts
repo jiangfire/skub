@@ -4,7 +4,7 @@ import type { AuthUser, Role, PermissionAction } from "@/types/domain";
 
 // ── Helpers ──
 function makeUser(role: Role, status: "Active" | "Disabled" = "Active"): AuthUser {
-  return { id: "u1", role, status };
+  return { id: "u1", name: "test", role, status };
 }
 
 const ALL_ROLES: Role[] = ["Visitor", "Contributor", "Reviewer", "Owner"];

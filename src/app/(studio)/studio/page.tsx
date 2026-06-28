@@ -36,7 +36,6 @@ export default async function StudioPage() {
               <tr>
                 <th className="px-4 py-3 text-left font-medium">名称</th>
                 <th className="px-4 py-3 text-left font-medium">状态</th>
-                <th className="px-4 py-3 text-left font-medium">调用</th>
                 <th className="px-4 py-3 text-left font-medium">更新时间</th>
                 <th className="px-4 py-3 text-left font-medium">操作</th>
               </tr>
@@ -58,7 +57,6 @@ export default async function StudioPage() {
                   <td className="px-4 py-3">
                     <StatusBadge status={skill.status} />
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{skill._count.callLogs}</td>
                   <td className="px-4 py-3 text-gray-500">
                     {new Date(skill.updatedAt).toLocaleDateString("zh-CN")}
                   </td>

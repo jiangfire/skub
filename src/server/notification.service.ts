@@ -23,8 +23,13 @@ interface CreateNotificationInput {
 /**
  * Create a notification for a user.
  * Non-blocking: errors are logged but never thrown.
+ * Respects NOTIFICATIONS_DISABLED env var (set to "true" to disable sending).
  */
 export async function notify(input: CreateNotificationInput): Promise<void> {
+  if (process.env.NOTIFICATIONS_DISABLED === "true") {
+    console.log("[notify] Skipped (NOTIFICATIONS_DISABLED=true):", input.type, input.title);
+    return;
+  }
   try {
     await prisma.notification.create({
       data: {

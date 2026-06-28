@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+import FileUpload from "@/components/FileUpload";
+import SkillZipUploader from "@/components/SkillZipUploader";
 
 export default function CreateSkillPage() {
   const router = useRouter();
@@ -15,8 +18,10 @@ export default function CreateSkillPage() {
   const [tags, setTags] = useState("");
   const [endpointUrl, setEndpointUrl] = useState("");
   const [skillMd, setSkillMd] = useState("---\nname: \ndescription: \n---\n\n# \n\n");
-  const [inputSchema, setInputSchema] = useState('{\n  "type": "object",\n  "properties": {}\n}');
-  const [outputSchema, setOutputSchema] = useState('{\n  "type": "object",\n  "properties": {}\n}');
+
+  // SKILL.md 输入方式：manual 手动编辑 / zip 上传 ZIP 包
+  const [inputMode, setInputMode] = useState<"manual" | "zip">("manual");
+  const [zipFile, setZipFile] = useState<File | null>(null);
 
   // Digital employee toggle + persona fields
   const [isDigitalEmployee, setIsDigitalEmployee] = useState(false);
@@ -32,21 +37,12 @@ export default function CreateSkillPage() {
     setLoading(true);
 
     try {
-      // Parse JSON schemas
-      let parsedInput: Record<string, unknown>;
-      let parsedOutput: Record<string, unknown>;
-      try {
-        parsedInput = JSON.parse(inputSchema);
-        parsedOutput = JSON.parse(outputSchema);
-      } catch {
-        throw new Error("输入/输出 Schema 不是有效的 JSON");
+      // ZIP 模式下必须已上传 ZIP 并成功解析出 SKILL.md
+      if (inputMode === "zip" && !zipFile) {
+        throw new Error("请先上传包含 SKILL.md 的 ZIP 包");
       }
-
-      // Validate digital employee fields if enabled
-      if (isDigitalEmployee) {
-        if (!personaName || !avatarUrl || !personaIntro || !welcomeMessage || !roleDesc) {
-          throw new Error("数字员工人设信息未填写完整");
-        }
+      if (inputMode === "zip" && !skillMd.trim()) {
+        throw new Error("ZIP 包中 SKILL.md 内容为空");
       }
 
       const body: Record<string, unknown> = {
@@ -59,8 +55,6 @@ export default function CreateSkillPage() {
           .filter(Boolean),
         endpointUrl: endpointUrl || null,
         skillMd,
-        inputSchema: parsedInput,
-        outputSchema: parsedOutput,
       };
 
       if (isDigitalEmployee) {
@@ -85,7 +79,28 @@ export default function CreateSkillPage() {
       }
 
       const data = await res.json();
-      router.push(`/studio/${data.skill.id}`);
+      const skillId = data.skill.id;
+
+      // 如果选择了 ZIP 上传，创建成功后继续上传 ZIP 包
+      if (inputMode === "zip" && zipFile) {
+        const formData = new FormData();
+        formData.append("file", zipFile);
+
+        const uploadRes = await fetch(`/api/studio/skills/${skillId}/upload-zip`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          const uploadData = await uploadRes.json().catch(() => null);
+          // 技能已创建，但 ZIP 上传失败，提示用户并跳转
+          throw new Error(
+            uploadData?.message ?? "技能已创建，但 ZIP 上传失败，请前往 Studio 手动上传",
+          );
+        }
+      }
+
+      router.push(`/studio/${skillId}`);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "创建失败");
@@ -170,41 +185,74 @@ export default function CreateSkillPage() {
 
         {/* SKILL.md */}
         <div className="rounded-lg border border-gray-200 p-4">
-          <h2 className="mb-2 text-sm font-semibold text-gray-900">SKILL.md</h2>
-          <p className="mb-2 text-xs text-gray-500">
-            遵循 WorkBuddy SKILL.md 规范：YAML frontmatter + Markdown 正文
-          </p>
-          <textarea
-            value={skillMd}
-            onChange={(e) => setSkillMd(e.target.value)}
-            required
-            rows={10}
-            className="w-full rounded-md border border-gray-300 p-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900">SKILL.md</h2>
+            <div className="flex rounded-md bg-gray-100 p-1">
+              <button
+                type="button"
+                onClick={() => setInputMode("manual")}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  inputMode === "manual"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                手动编辑
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputMode("zip")}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  inputMode === "zip"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                上传 ZIP 包
+              </button>
+            </div>
+          </div>
 
-        {/* Schemas */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-lg border border-gray-200 p-4">
-            <h2 className="mb-2 text-sm font-semibold text-gray-900">输入 Schema（JSON Schema）</h2>
-            <textarea
-              value={inputSchema}
-              onChange={(e) => setInputSchema(e.target.value)}
-              required
-              rows={8}
-              className="w-full rounded-md border border-gray-300 p-2 font-mono text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div className="rounded-lg border border-gray-200 p-4">
-            <h2 className="mb-2 text-sm font-semibold text-gray-900">输出 Schema（JSON Schema）</h2>
-            <textarea
-              value={outputSchema}
-              onChange={(e) => setOutputSchema(e.target.value)}
-              required
-              rows={8}
-              className="w-full rounded-md border border-gray-300 p-2 font-mono text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+          {inputMode === "manual" ? (
+            <>
+              <p className="mb-2 text-xs text-gray-500">
+                遵循 WorkBuddy SKILL.md 规范：YAML frontmatter + Markdown 正文
+              </p>
+              <textarea
+                value={skillMd}
+                onChange={(e) => setSkillMd(e.target.value)}
+                required={inputMode === "manual"}
+                rows={10}
+                className="w-full rounded-md border border-gray-300 p-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-xs text-gray-500">
+                上传包含 SKILL.md 的 ZIP 包，系统将自动解析并作为技能内容
+              </p>
+              <SkillZipUploader
+                onExtract={(extracted, file) => {
+                  setSkillMd(extracted);
+                  setZipFile(file);
+                }}
+                onClear={() => {
+                  setZipFile(null);
+                  setSkillMd("---\nname: \ndescription: \n---\n\n# \n\n");
+                }}
+              />
+              {skillMd.trim() && zipFile && (
+                <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-2 text-xs font-medium text-gray-700">
+                    已解析 SKILL.md 预览（只读）
+                  </p>
+                  <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md border border-gray-200 bg-white p-3 text-xs text-gray-700">
+                    {skillMd}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Digital Employee Toggle */}
@@ -238,15 +286,34 @@ export default function CreateSkillPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">头像 URL *</label>
-                  <input
-                    type="url"
-                    value={avatarUrl}
-                    onChange={(e) => setAvatarUrl(e.target.value)}
-                    required={isDigitalEmployee}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    placeholder="https://..."
-                  />
+                  <label className="mb-1 block text-xs font-medium text-gray-700">头像 *</label>
+                  {avatarUrl ? (
+                    <div className="space-y-2">
+                      <Image
+                        src={avatarUrl}
+                        alt="Avatar preview"
+                        width={64}
+                        height={64}
+                        className="rounded-full object-cover"
+                        unoptimized
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setAvatarUrl("")}
+                        className="text-xs text-red-600 hover:text-red-800"
+                      >
+                        删除头像
+                      </button>
+                    </div>
+                  ) : (
+                    <FileUpload
+                      onUpload={(url) => setAvatarUrl(url)}
+                      accept="image/*"
+                      label=""
+                      description="上传头像图片（JPG/PNG/GIF/WEBP）"
+                      showPreview={false}
+                    />
+                  )}
                 </div>
               </div>
               <div>
