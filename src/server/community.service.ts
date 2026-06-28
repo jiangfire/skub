@@ -92,6 +92,22 @@ export async function upsertRating(userId: string, skillId: string, stars: numbe
   return result;
 }
 
+export async function getUserLike(userId: string, skillId: string) {
+  const like = await prisma.like.findUnique({
+    where: { userId_skillId: { skillId, userId } },
+    select: { id: true },
+  });
+  return !!like;
+}
+
+export async function getUserFavorite(userId: string, skillId: string) {
+  const favorite = await prisma.favorite.findUnique({
+    where: { userId_skillId: { skillId, userId } },
+    select: { id: true },
+  });
+  return !!favorite;
+}
+
 // ── Favorites (toggle, race-safe via upsert) ──
 
 export async function toggleFavorite(userId: string, skillId: string): Promise<boolean> {

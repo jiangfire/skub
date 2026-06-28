@@ -1,6 +1,11 @@
 import { notFound } from "next/navigation";
 import { getSkillBySlug } from "@/server/skill.service";
-import { getUserRating, listComments } from "@/server/community.service";
+import {
+  getUserRating,
+  listComments,
+  getUserLike,
+  getUserFavorite,
+} from "@/server/community.service";
 import { getSessionUser } from "@/lib/api/session";
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
@@ -9,6 +14,7 @@ import CommentSection from "@/components/CommentSection";
 import SkillFileTree from "@/components/SkillFileTree";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import RatingWidget from "@/components/RatingWidget";
+import SkillActionBar from "@/components/SkillActionBar";
 import { buildFileTree } from "@/lib/file-tree";
 
 export default async function SkillDetailPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -22,11 +28,13 @@ export default async function SkillDetailPage({ params }: { params: Promise<{ sl
     notFound();
   }
 
-  // Fetch initial comments, files, and current user's rating
+  // Fetch initial comments, files, rating, like and favorite state
   const [
     { comments, total: totalComments, page: initialPage, totalPages },
     skillFiles,
     userRating,
+    userLiked,
+    userFavorited,
   ] = await Promise.all([
     listComments(skill.id, 1, 20),
     prisma.skillFile.findMany({
@@ -35,6 +43,8 @@ export default async function SkillDetailPage({ params }: { params: Promise<{ sl
       select: { path: true, mimeType: true, size: true },
     }),
     user ? getUserRating(user.id, skill.id) : null,
+    user ? getUserLike(user.id, skill.id) : false,
+    user ? getUserFavorite(user.id, skill.id) : false,
   ]);
 
   const files = buildFileTree(skillFiles);
@@ -104,23 +114,6 @@ export default async function SkillDetailPage({ params }: { params: Promise<{ sl
             </svg>
             {stats.downloadCount} 次下载
           </span>
-          <span>·</span>
-          <span className="flex items-center gap-1">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M7 10v12" />
-              <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76" />
-            </svg>
-            {stats.likeCount} 赞
-          </span>
           {stats.ratingCount > 0 && (
             <>
               <span>·</span>
@@ -158,6 +151,21 @@ export default async function SkillDetailPage({ params }: { params: Promise<{ sl
         />
       </section>
 
+      {/* === Action Bar: Download / Like / Favorite === */}
+      <section className="mb-8">
+        <SkillActionBar
+          slug={slug}
+          downloadCount={stats.downloadCount}
+          likeCount={stats.likeCount}
+          favoriteCount={stats.favoriteCount}
+          userLiked={userLiked}
+          userFavorited={userFavorited}
+          isLoggedIn={!!user}
+          isApproved={skill.status === "Approved"}
+          hasDownload={!!skill.skillMd || !!skill.zipUrl}
+        />
+      </section>
+
       {/* === Digital Employee Persona === */}
       {isDigitalEmployee && skill.digitalEmployee && (
         <section className="mb-8 rounded-xl border border-purple-200/60 bg-purple-50/50 p-5">
@@ -177,33 +185,6 @@ export default async function SkillDetailPage({ params }: { params: Promise<{ sl
             </div>
           </dl>
         </section>
-      )}
-
-      {/* === Download Button === */}
-      {(skill.skillMd || skill.zipUrl) && (
-        <div className="mb-8">
-          <a
-            href={`/api/skills/${slug}/download`}
-            download
-            className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            下载 Skill (.zip)
-          </a>
-        </div>
       )}
 
       {/* === SKILL.md Content === */}
