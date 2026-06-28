@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSessionUser } from "@/lib/api/session";
 import NotificationBell from "@/components/NotificationBell";
 import AdminNavDropdown from "@/components/admin/AdminNavDropdown";
+import UserNavDropdown from "@/components/UserNavDropdown";
 
 export default async function Navbar() {
   const user = await getSessionUser();
@@ -64,20 +65,7 @@ export default async function Navbar() {
           {user ? (
             <>
               <NotificationBell />
-              <Link
-                href="/account"
-                className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-              >
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-xs font-medium text-brand-700">
-                  {user.name?.charAt(0).toUpperCase() ?? "?"}
-                </div>
-                <span className="hidden text-sm font-medium sm:inline-block">{user.name}</span>
-              </Link>
-              <form action="/api/auth/logout" method="POST">
-                <button type="submit" className="btn-ghost text-sm">
-                  退出
-                </button>
-              </form>
+              <UserNavDropdown userName={user.name} />
             </>
           ) : (
             <>

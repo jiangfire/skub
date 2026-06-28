@@ -108,6 +108,44 @@ export async function getUserFavorite(userId: string, skillId: string) {
   return !!favorite;
 }
 
+export async function listUserFavorites(userId: string, limit = 100) {
+  const favorites = await prisma.favorite.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      skill: {
+        include: {
+          owner: { select: { id: true, name: true } },
+          category: { select: { id: true, name: true } },
+          _count: { select: { likes: true, favorites: true } },
+        },
+      },
+    },
+  });
+
+  return favorites.map((f) => f.skill);
+}
+
+export async function listUserLikes(userId: string, limit = 100) {
+  const likes = await prisma.like.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      skill: {
+        include: {
+          owner: { select: { id: true, name: true } },
+          category: { select: { id: true, name: true } },
+          _count: { select: { likes: true, favorites: true } },
+        },
+      },
+    },
+  });
+
+  return likes.map((l) => l.skill);
+}
+
 // ── Favorites (toggle, race-safe via upsert) ──
 
 export async function toggleFavorite(userId: string, skillId: string): Promise<boolean> {
