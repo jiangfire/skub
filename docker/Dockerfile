@@ -10,6 +10,8 @@ RUN npm ci
 # ── Stage 2: Build ──
 FROM node:22-alpine AS builder
 WORKDIR /app
+# OpenSSL 1.1 compat needed by Prisma engine during build on Alpine 3.20+
+RUN apk add --no-cache openssl1.1-compat
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
@@ -22,6 +24,9 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+
+# OpenSSL 1.1 compat needed by Prisma engine at runtime on Alpine 3.20+
+RUN apk add --no-cache openssl1.1-compat
 
 # Install only production dependencies (skip prepare/husky script — devDep, not available)
 COPY package.json package-lock.json* ./
