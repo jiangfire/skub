@@ -23,9 +23,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install only production dependencies
+# Install only production dependencies (skip prepare/husky script — devDep, not available)
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 # Copy built app and Prisma
 COPY --from=builder /app/.next/standalone ./
