@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
+# Provide dummy DATABASE_URL so Prisma Client can initialize during build
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?schema=public"
 RUN npm run build
 # Compile seed.ts to standalone JS (tsx is a devDependency, not available in runtime)
 RUN npx esbuild prisma/seed.ts --bundle --platform=node --outfile=prisma/seed.js --format=cjs --external:@prisma/client --external:bcrypt
@@ -35,7 +37,6 @@ RUN npm ci --omit=dev --ignore-scripts
 # Copy built app and Prisma
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
