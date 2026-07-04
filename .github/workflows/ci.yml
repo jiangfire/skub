@@ -1,34 +1,16 @@
+# ─── CI: Pull Request & Push Checks ───
 name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
-  ci:
+  quality:
+    name: Lint + TypeCheck + Test
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: skills_hub_test
-          POSTGRES_USER: skillshub
-          POSTGRES_PASSWORD: skillshub
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U skillshub -d skills_hub_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DATABASE_URL: postgresql://skillshub:skillshub@localhost:5432/skills_hub_test?schema=public
-      JWT_SECRET: ci-test-secret
-      JWT_EXPIRES_IN: 1h
 
     steps:
       - uses: actions/checkout@v4
@@ -38,23 +20,51 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Generate Prisma client
+      - name: Generate Prisma Client
         run: npx prisma generate
-
-      - name: Run database migrations
-        run: npx prisma db push
 
       - name: Lint
         run: npm run lint
 
-      - name: Type check
+      - name: Type Check
         run: npm run typecheck
 
-      - name: Run tests
+      - name: Test
         run: npm run test
 
+  build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    needs: quality
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
       - name: Build
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy?schema=public"
+          JWT_SECRET: "ci-build-secret"
         run: npm run build
+
+  docker-build:
+    name: Docker Image Build
+    runs-on: ubuntu-latest
+    needs: quality
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -f docker/Dockerfile -t skills-hub:ci .

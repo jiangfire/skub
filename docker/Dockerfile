@@ -14,6 +14,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
 RUN npm run build
+# Compile seed.ts to standalone JS (tsx is a devDependency, not available in runtime)
+RUN npx esbuild prisma/seed.ts --bundle --platform=node --outfile=prisma/seed.js --format=cjs --external:@prisma/client --external:bcrypt
 
 # ── Stage 3: Runtime ──
 FROM node:22-alpine AS runner
@@ -32,6 +34,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+# Copy compiled seed script
+COPY --from=builder /app/prisma/seed.js ./prisma/seed.js
 
 EXPOSE 3000
 ENV PORT=3000
