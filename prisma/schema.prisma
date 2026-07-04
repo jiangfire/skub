@@ -2,8 +2,7 @@
 // Aligns with Plan §2 数据模型 and Spec §3 核心概念
 
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {

@@ -1,17 +1,16 @@
 # ─── Skills Hub Dockerfile ───
 # Multi-stage build: deps → build → runtime
+# Uses Debian slim (not Alpine) for Prisma OpenSSL 3.x compatibility
 
 # ── Stage 1: Dependencies ──
-FROM node:22-alpine AS deps
+FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
 # ── Stage 2: Build ──
-FROM node:22-alpine AS builder
+FROM node:22-bookworm-slim AS builder
 WORKDIR /app
-# OpenSSL 1.1 compat needed by Prisma engine during build on Alpine 3.20+
-RUN apk add --no-cache openssl1.1-compat
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
@@ -20,13 +19,10 @@ RUN npm run build
 RUN npx esbuild prisma/seed.ts --bundle --platform=node --outfile=prisma/seed.js --format=cjs --external:@prisma/client --external:bcrypt
 
 # ── Stage 3: Runtime ──
-FROM node:22-alpine AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-
-# OpenSSL 1.1 compat needed by Prisma engine at runtime on Alpine 3.20+
-RUN apk add --no-cache openssl1.1-compat
 
 # Install only production dependencies (skip prepare/husky script — devDep, not available)
 COPY package.json package-lock.json* ./
