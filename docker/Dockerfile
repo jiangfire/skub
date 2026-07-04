@@ -23,9 +23,6 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# OpenSSL needed by Prisma query engine on Alpine
-RUN apk add --no-cache openssl1.1-compat
-
 # Install only production dependencies (skip prepare/husky script — devDep, not available)
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev --ignore-scripts
